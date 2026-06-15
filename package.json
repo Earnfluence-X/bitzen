@@ -1,5 +1,5 @@
 {
-  "name": "react-vite-tailwind",
+  "name": "bitzen",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -9,23 +9,21 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "firebase": "10.12.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "zustand": "4.4.7",
+    "framer-motion": "10.16.16",
     "clsx": "2.1.1",
-    "firebase": "^12.14.0",
-    "framer-motion": "^12.40.0",
-    "react": "19.2.6",
-    "react-dom": "19.2.6",
-    "tailwind-merge": "3.4.0",
-    "zustand": "^5.0.14"
+    "tailwind-merge": "2.2.0"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "4.1.17",
-    "@types/node": "22.19.17",
-    "@types/react": "19.2.7",
-    "@types/react-dom": "19.2.3",
-    "@vitejs/plugin-react": "5.1.1",
-    "tailwindcss": "4.1.17",
-    "typescript": "5.9.3",
-    "vite": "7.3.2",
-    "vite-plugin-singlefile": "2.3.0"
+    "@types/react": "18.2.43",
+    "@types/react-dom": "18.2.17",
+    "@vitejs/plugin-react": "4.2.1",
+    "typescript": "5.2.2",
+    "vite": "5.0.8",
+    "tailwindcss": "3.3.6",
+    "@tailwindcss/vite": "3.3.6"
   }
 }
