@@ -1,22 +1,60 @@
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import { motion } from 'framer-motion';
+import { signInWithEmailAndPassword } from '@/lib/firebase';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const login = useStore(s => s.login);
   const setAuthScreen = useStore(s => s.setAuthScreen);
+  const addToast = useStore(s => s.addToast);
+  const setCurrentUser = useStore(s => s.setCurrentUser);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
     setLoading(true);
-    setTimeout(() => {
-      login(email, password);
+    
+    try {
+      // Sign in with Firebase Auth
+      const userCredential = await signInWithEmailAndPassword(email, password);
+      const firebaseUser = userCredential.user;
+      
+      console.log("✅ Firebase login successful:", firebaseUser.uid);
+      
+      // Create/update local user
+      const localUser = {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email || email,
+        displayName: email.split('@')[0],
+        initials: email[0].toUpperCase(),
+        balance: 100,
+        totalEarned: 0,
+        totalSpent: 0,
+        gigsCompleted: 0,
+        gigsPosted: 0,
+        reputation: 5.0,
+        ratingSum: 0,
+        ratingCount: 0,
+        streak: 0,
+        lastBonusDate: null,
+        referralCode: email.slice(0, 6).toUpperCase(),
+        referredBy: null,
+        referralCount: 0,
+        pin: '',
+        createdAt: Date.now(),
+      };
+      
+      setCurrentUser(localUser);
+      addToast(`Welcome back!`, 'success');
+      
+    } catch (error: any) {
+      console.error("Login error:", error);
+      addToast(error.message || 'Login failed', 'error');
+    } finally {
       setLoading(false);
-    }, 600);
+    }
   };
 
   return (
@@ -114,37 +152,6 @@ export default function LoginForm() {
               Create one
             </button>
           </p>
-
-          <div style={{
-            marginTop: 32,
-            padding: 16,
-            background: '#0b0e14',
-            borderRadius: 14,
-            border: '1px solid #1e2330',
-          }}>
-            <p style={{ fontSize: 12, color: '#6f7a91', marginBottom: 8 }}>Demo accounts:</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {['alex@campus.edu', 'jordan@campus.edu', 'maya@campus.edu'].map(e => (
-                <button
-                  key={e}
-                  onClick={() => { setEmail(e); setPassword('demo123'); }}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#00FF7F',
-                    fontSize: 13,
-                    cursor: 'pointer',
-                    fontFamily: 'var(--font-mono)',
-                    textAlign: 'left',
-                    padding: '4px 0',
-                  }}
-                >
-                  {e}
-                </button>
-              ))}
-              <p style={{ fontSize: 11, color: '#4c5468', marginTop: 4 }}>Password: demo123</p>
-            </div>
-          </div>
         </motion.div>
       </div>
     </div>
