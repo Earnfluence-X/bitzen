@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import { motion } from 'framer-motion';
+import { createUserWithEmailAndPassword, db, doc, setDoc } from '@/lib/firebase';
 
 export default function SignupForm() {
   const [name, setName] = useState('');
@@ -8,21 +9,76 @@ export default function SignupForm() {
   const [password, setPassword] = useState('');
   const [referral, setReferral] = useState('');
   const [loading, setLoading] = useState(false);
-  const signup = useStore(s => s.signup);
   const setAuthScreen = useStore(s => s.setAuthScreen);
+  const addToast = useStore(s => s.addToast);
+  const setCurrentUser = useStore(s => s.setCurrentUser);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !email || !password) return;
     if (password.length < 6) {
-      useStore.getState().addToast('Password must be at least 6 characters', 'error');
+      addToast('Password must be at least 6 characters', 'error');
       return;
     }
     setLoading(true);
-    setTimeout(() => {
-      signup(email, password, name, referral || undefined);
+    
+    try {
+      // Create Firebase Auth user
+      const userCredential = await createUserWithEmailAndPassword(email, password);
+      const firebaseUser = userCredential.user;
+      
+      console.log("✅ Firebase signup successful:", firebaseUser.uid);
+      
+      // Save user data to Firestore
+      const userData = {
+        uid: firebaseUser.uid,
+        name: name,
+        email: email,
+        balance: 100,
+        referralCode: name.slice(0, 6).toUpperCase() + Math.floor(Math.random() * 1000),
+        streak: 0,
+        reputation: 50,
+        createdAt: Date.now(),
+      };
+      
+      await setDoc(doc(db, 'users', firebaseUser.uid), userData);
+      
+      // Create local user
+      const localUser = {
+        uid: firebaseUser.uid,
+        email: email,
+        displayName: name,
+        initials: name.split(' ').map(n => n[0]).join('').toUpperCase(),
+        balance: 100,
+        totalEarned: 100,
+        totalSpent: 0,
+        gigsCompleted: 0,
+        gigsPosted: 0,
+        reputation: 5.0,
+        ratingSum: 0,
+        ratingCount: 0,
+        streak: 0,
+        lastBonusDate: null,
+        referralCode: userData.referralCode,
+        referredBy: referral || null,
+        referralCount: 0,
+        pin: '',
+        createdAt: Date.now(),
+      };
+      
+      setCurrentUser(localUser);
+      addToast(`Welcome to Bitzen! 100 coins added`, 'success');
+      
+    } catch (error: any) {
+      console.error("Signup error:", error);
+      if (error.code === 'auth/email-already-in-use') {
+        addToast('Email already registered', 'error');
+      } else {
+        addToast(error.message || 'Signup failed', 'error');
+      }
+    } finally {
       setLoading(false);
-    }, 800);
+    }
   };
 
   return (
@@ -63,7 +119,7 @@ export default function SignupForm() {
             Create account
           </h1>
           <p style={{ color: '#6f7a91', fontSize: 14, marginBottom: 32 }}>
-            Get 50 free coins when you sign up
+            Get 100 free coins when you sign up
           </p>
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
