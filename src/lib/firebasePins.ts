@@ -1,4 +1,5 @@
-import { db, auth, doc, setDoc, getDoc, deleteDoc, updateDoc } from './firebase';
+import { db, auth } from './firebase';
+import { doc, setDoc, getDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 
 export async function createFirebasePIN(amount: number, senderId: string): Promise<string | null> {
   const firebaseUser = auth.currentUser;
@@ -10,7 +11,7 @@ export async function createFirebasePIN(amount: number, senderId: string): Promi
   
   try {
     const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
+    const expiresAt = Date.now() + 5 * 60 * 1000;
     
     await setDoc(doc(db, 'transferPins', code), {
       code: code,
@@ -58,7 +59,6 @@ export async function claimFirebasePIN(code: string, receiverId: string) {
     
     await updateDoc(pinRef, { isUsed: true });
     
-    // Clean up after 1 second
     setTimeout(async () => {
       await deleteDoc(pinRef);
     }, 1000);
