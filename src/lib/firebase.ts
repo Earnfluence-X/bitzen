@@ -1,6 +1,18 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
-import { getFirestore, doc, getDoc, setDoc, collection } from "firebase/firestore";
+import { 
+  getFirestore, 
+  doc, 
+  getDoc, 
+  setDoc, 
+  deleteDoc, 
+  updateDoc, 
+  collection, 
+  addDoc, 
+  query, 
+  where, 
+  getDocs 
+} from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -11,8 +23,8 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-if (!firebaseConfig.apiKey) {
-  console.error("❌ Missing Firebase config! Create .env.local file");
+if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+  console.error("❌ Missing Firebase config! Check .env.local file");
 }
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
@@ -20,10 +32,21 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 export { 
-  app, auth, db, 
+  app, 
+  auth, 
+  db, 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signOut, 
-  onAuthStateChanged, 
-  doc, getDoc, setDoc, collection 
+  onAuthStateChanged,
+  doc, 
+  getDoc, 
+  setDoc, 
+  deleteDoc, 
+  updateDoc,
+  collection,
+  addDoc,
+  query,
+  where,
+  getDocs
 };
