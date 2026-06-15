@@ -36,12 +36,15 @@ interface AppState {
   isLoading: boolean;
 
   // Auth actions
-  signup: (email: string, password: string, name: string, referralCode?: string) => boolean;
-  login: (email: string, password: string) => boolean;
+  signup: (email: string, password: string, name: string, referralCode?: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   setAuthScreen: (screen: 'onboarding' | 'login' | 'signup') => void;
   setPin: (pin: string) => void;
   verifyPin: (pin: string) => boolean;
+  
+  // ADD THIS MISSING ACTION:
+  setCurrentUser: (user: User | null) => void;
 
   // Navigation actions
   setActiveTab: (tab: TabId) => void;
@@ -133,106 +136,32 @@ export const useStore = create<AppState>()(
       coinAnimationActive: false,
       isLoading: false,
 
-      // Auth actions
-      signup: (email, _password, name, referralCode) => {
-        const { allUsers, transactions } = get();
-        if (allUsers.find(u => u.email === email)) {
-          get().addToast('Email already registered', 'error');
-          return false;
-        }
-
-        const uid = generateId();
-        const newUser: User = {
-          uid,
-          email,
-          displayName: name,
-          initials: getInitials(name),
-          balance: SIGNUP_BONUS,
-          totalEarned: SIGNUP_BONUS,
-          totalSpent: 0,
-          gigsCompleted: 0,
-          gigsPosted: 0,
-          reputation: 5.0,
-          ratingSum: 0,
-          ratingCount: 0,
-          streak: 0,
-          lastBonusDate: null,
-          referralCode: generateReferralCode(),
-          referredBy: referralCode || null,
-          referralCount: 0,
-          pin: '',
-          createdAt: Date.now(),
-        };
-
-        const newTx: Transaction = {
-          id: generateId(),
-          type: 'signup',
-          amount: SIGNUP_BONUS,
-          fromUid: 'system',
-          fromName: 'Bitzen',
-          toUid: uid,
-          toName: name,
-          description: 'Welcome bonus',
-          timestamp: Date.now(),
-        };
-
-        const updatedUsers = [...allUsers, newUser];
-        const updatedTxs = [newTx, ...transactions];
-
-        // Handle referral
-        if (referralCode) {
-          const referrer = allUsers.find(u => u.referralCode === referralCode);
-          if (referrer) {
-            const referrerUpdated = {
-              ...referrer,
-              balance: referrer.balance + REFERRAL_BONUS,
-              totalEarned: referrer.totalEarned + REFERRAL_BONUS,
-              referralCount: referrer.referralCount + 1,
-            };
-            const idx = updatedUsers.findIndex(u => u.uid === referrer.uid);
-            updatedUsers[idx] = referrerUpdated;
-
-            newUser.balance += REFERRAL_BONUS;
-            newUser.totalEarned += REFERRAL_BONUS;
-
-            const referralTx: Transaction = {
-              id: generateId(),
-              type: 'referral',
-              amount: REFERRAL_BONUS,
-              fromUid: 'system',
-              fromName: 'Bitzen',
-              toUid: uid,
-              toName: name,
-              description: `Referral bonus from ${referrer.displayName}`,
-              timestamp: Date.now(),
-            };
-            updatedTxs.unshift(referralTx);
-          }
-        }
-
-        set({
-          currentUser: newUser,
-          isAuthenticated: true,
-          allUsers: updatedUsers,
-          transactions: updatedTxs,
+      // ========== ADD THIS MISSING ACTION ==========
+      setCurrentUser: (user) => {
+        set({ 
+          currentUser: user, 
+          isAuthenticated: !!user 
         });
+        if (user) {
+          localStorage.setItem('bitzen_user', JSON.stringify(user));
+        } else {
+          localStorage.removeItem('bitzen_user');
+        }
+      },
+      // ============================================
 
-        soundEngine.receive();
-        get().addToast(`Welcome to Bitzen! ${SIGNUP_BONUS} coins added`, 'success');
-        return true;
+      // Auth actions (update these to work with Firebase)
+      signup: async (email, _password, name, referralCode) => {
+        // This is now handled by SignupForm with Firebase
+        // Keep for fallback but return false
+        get().addToast('Please use the signup form with Firebase', 'error');
+        return false;
       },
 
-      login: (email, _password) => {
-        const { allUsers } = get();
-        const user = allUsers.find(u => u.email === email);
-        if (!user) {
-          get().addToast('Account not found', 'error');
-          return false;
-        }
-        set({ currentUser: user, isAuthenticated: true });
-        soundEngine.click();
-        get().addToast(`Welcome back, ${user.displayName.split(' ')[0]}!`, 'success');
-        return true;
+      login: async (email, _password) => {
+        // This is now handled by LoginForm with Firebase
+        get().addToast('Please use the login form with Firebase', 'error');
+        return false;
       },
 
       logout: () => {
@@ -243,6 +172,7 @@ export const useStore = create<AppState>()(
           activeTab: 'home',
           activeModal: null,
         });
+        localStorage.removeItem('bitzen_user');
       },
 
       setAuthScreen: (screen) => set({ authScreen: screen }),
@@ -271,10 +201,7 @@ export const useStore = create<AppState>()(
       openModal: (modal, data) => set({ activeModal: modal, modalData: data || null }),
       closeModal: () => set({ activeModal: null, modalData: null }),
 
-      // ============================================================
-      // UPDATED: Transfer codes with Firebase cross-device support
-      // ============================================================
-      
+      // Transfer codes with Firebase cross-device support
       createTransferCode: async (amount: number) => {
         const currentUser = get().currentUser;
         if (!currentUser || currentUser.balance < amount || amount <= 0) {
@@ -283,7 +210,6 @@ export const useStore = create<AppState>()(
           return null;
         }
 
-        // Save PIN to Firebase (cross-device)
         const code = await createFirebasePIN(amount, currentUser.uid);
         
         if (!code) {
@@ -291,14 +217,12 @@ export const useStore = create<AppState>()(
           return null;
         }
 
-        // Deduct from sender's balance
         const updatedUser = {
           ...currentUser,
           balance: currentUser.balance - amount,
           totalSpent: currentUser.totalSpent + amount,
         };
 
-        // Save to local transfer codes (for history)
         const transferCodeObj: TransferCode = {
           id: generateId(),
           code: code,
@@ -328,7 +252,6 @@ export const useStore = create<AppState>()(
           return false;
         }
 
-        // Check if it's their own code
         const existingLocalCode = get().transferCodes.find(c => c.code === inputCode && c.fromUid === currentUser.uid);
         if (existingLocalCode) {
           get().addToast('Cannot claim your own code', 'error');
@@ -336,7 +259,6 @@ export const useStore = create<AppState>()(
           return false;
         }
 
-        // Claim PIN from Firebase (cross-device)
         const result = await claimFirebasePIN(inputCode, currentUser.uid);
         
         if (!result.success) {
@@ -345,14 +267,12 @@ export const useStore = create<AppState>()(
           return false;
         }
 
-        // Add to receiver's balance
         const updatedUser = {
           ...currentUser,
           balance: currentUser.balance + (result.amount || 0),
           totalEarned: currentUser.totalEarned + (result.amount || 0),
         };
 
-        // Create transaction records
         const receiveTx: Transaction = {
           id: generateId(),
           type: 'received',
@@ -366,7 +286,6 @@ export const useStore = create<AppState>()(
           transferCode: inputCode,
         };
 
-        // Update local transfer code status
         const updatedTransferCodes = get().transferCodes.map(c => 
           c.code === inputCode ? { ...c, status: 'claimed' as const, claimedBy: currentUser.uid, claimedAt: Date.now() } : c
         );
@@ -384,7 +303,7 @@ export const useStore = create<AppState>()(
         return true;
       },
 
-      // Gigs
+      // Gigs (keep as is)
       postGig: (title, description, category, type, reward) => {
         const { currentUser, gigs } = get();
         if (!currentUser) return false;
@@ -471,7 +390,6 @@ export const useStore = create<AppState>()(
         const updatedGigs = [...gigs];
         updatedGigs[gigIdx] = completedGig;
 
-        // Transfer coins
         const worker = gig.type === 'needed' ? gig.claimedBy! : gig.postedBy;
         const payer = gig.type === 'needed' ? gig.postedBy : gig.claimedBy!;
 
@@ -536,7 +454,6 @@ export const useStore = create<AppState>()(
         const updatedGigs = [...gigs];
         updatedGigs[gigIdx] = ratedGig;
 
-        // Update worker reputation
         const workerUid = gig.type === 'needed' ? gig.claimedBy! : gig.postedBy;
         const worker = allUsers.find(u => u.uid === workerUid);
         if (worker) {
